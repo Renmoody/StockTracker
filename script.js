@@ -1,6 +1,7 @@
 const stocksDiv = document.getElementById('stocks');
 const tickers = [];
-const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your API key!
+import { API_KEY } from './config.js';
+
 
 // Chart.js setup
 const ctx = document.getElementById('stockChart').getContext('2d');
