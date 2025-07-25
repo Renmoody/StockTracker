@@ -1,92 +1,168 @@
 const stocksDiv = document.getElementById('stocks');
 const tickers = [];
+const chartContainer = document.querySelector('.chart-container');
+const charts = {};
+
 import { API_KEY } from './config.js';
 
-
-// Chart.js setup
-const ctx = document.getElementById('stockChart').getContext('2d');
-const stockChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [], // timestamps
-    datasets: []
-  },
-  options: {
-    responsive: true,
-    scales: {
-      x: { display: true, title: { display: true, text: 'Time' }},
-      y: { display: true, title: { display: true, text: 'Price ($)' }}
-    }
-  }
-});
-
+// Fetch stock data from Alpha Vantage API
 async function fetchStock(ticker) {
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  return data['Global Quote'];
+  console.log(`Fetching stock data for: ${ticker}`);
+  try {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    console.log(`Raw data for ${ticker}:`, data);
+    return data['Global Quote'];
+  } catch (error) {
+    console.error(`Error fetching ${ticker}:`, error);
+    return null;
+  }
 }
 
+// Update prices and charts for all tickers
 async function updateStocks() {
-  stocksDiv.innerHTML = '';
   for (const ticker of tickers) {
     const stock = await fetchStock(ticker);
-    const price = stock['05. price'];
-    const change = stock['10. change percent'];
-    const el = document.createElement('div');
-    el.className = 'stock';
-    el.innerText = `${ticker}: $${parseFloat(price).toFixed(2)} (${change})`;
-    stocksDiv.appendChild(el);
+    if (!stock || !stock['05. price']) continue;
 
-    // Update chart dataset for this ticker
-    let dataset = stockChart.data.datasets.find(ds => ds.label === ticker);
-    if (!dataset) {
-      dataset = {
+    const price = parseFloat(stock['05. price']);
+    const timestamp = new Date().toLocaleTimeString();
+
+    const chart = charts[ticker];
+    if (!chart) continue;
+
+    // Update chart labels & data
+    if (!chart.data.labels.includes(timestamp)) {
+      chart.data.labels.push(timestamp);
+    }
+    chart.data.datasets[0].data.push(price);
+
+    // Keep last 20 data points max
+    if (chart.data.labels.length > 20) chart.data.labels.shift();
+    if (chart.data.datasets[0].data.length > 20) chart.data.datasets[0].data.shift();
+
+    chart.update();
+
+    // Update textual stock info
+    updateStockInfo(ticker, price, stock['10. change percent']);
+  }
+}
+
+// Update or create textual stock info for a ticker
+function updateStockInfo(ticker, price, changePercent) {
+  let el = document.querySelector(`.stock[data-ticker="${ticker}"]`);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'stock';
+    el.dataset.ticker = ticker;
+    stocksDiv.appendChild(el);
+  }
+  el.innerText = `${ticker}: $${price.toFixed(2)} (${changePercent})`;
+}
+
+// Add a chart for a ticker with a remove button
+function addChartForTicker(ticker) {
+  // Wrapper div
+  const chartWrapper = document.createElement('div');
+  chartWrapper.className = 'chart-item';
+  chartWrapper.style.position = 'relative'; // for absolute remove btn
+
+  // Remove button
+  const removeBtn = document.createElement('button');
+  removeBtn.innerText = '×';
+  removeBtn.title = 'Remove this ticker';
+  removeBtn.className = 'remove-btn'; // style via CSS if you want
+
+
+  removeBtn.addEventListener('click', () => {
+    // Remove ticker from list
+    const index = tickers.indexOf(ticker);
+    if (index > -1) tickers.splice(index, 1);
+
+    // Destroy chart instance and delete ref
+    if (charts[ticker]) {
+      charts[ticker].destroy();
+      delete charts[ticker];
+    }
+
+    // Remove chart element
+    chartWrapper.remove();
+
+    // Remove textual stock info element
+    const stockInfo = document.querySelector(`.stock[data-ticker="${ticker}"]`);
+    if (stockInfo) stockInfo.remove();
+
+    console.log(`Removed ticker: ${ticker}`);
+  });
+
+  // Canvas for Chart.js
+  const canvas = document.createElement('canvas');
+
+  // Append elements
+  chartWrapper.appendChild(removeBtn);
+  chartWrapper.appendChild(canvas);
+  chartContainer.appendChild(chartWrapper);
+
+  // Create Chart.js instance
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
         label: ticker,
         data: [],
         borderColor: getRandomColor(),
         fill: false,
-        tension: 0.1
-      };
-      stockChart.data.datasets.push(dataset);
+        tension: 0.1,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { title: { display: true, text: 'Time' }},
+        y: { title: { display: true, text: 'Price ($)' }}
+      }
     }
+  });
 
-    const timestamp = new Date().toLocaleTimeString();
-    if (!stockChart.data.labels.includes(timestamp)) {
-      stockChart.data.labels.push(timestamp);
-    }
-
-    dataset.data.push(parseFloat(price));
-    if (dataset.data.length > 20) {
-      dataset.data.shift();
-    }
-  }
-
-  if (stockChart.data.labels.length > 20) {
-    stockChart.data.labels.shift();
-  }
-
-  stockChart.update();
+  charts[ticker] = chart;
 }
 
-function addTicker() {
+// Add ticker handler exposed globally (for HTML button onclick)
+window.addTicker = async function() {
   const input = document.getElementById('tickerInput');
   const ticker = input.value.trim().toUpperCase();
-  if (ticker && !tickers.includes(ticker)) {
-    tickers.push(ticker);
-    input.value = '';
-    updateStocks();
+  if (!ticker) {
+    console.log("Please enter a ticker symbol.");
+    return;
   }
-}
+  if (tickers.includes(ticker)) {
+    console.log(`Ticker "${ticker}" already added.`);
+    return;
+  }
 
+  tickers.push(ticker);
+  input.value = '';
+
+  addChartForTicker(ticker);
+
+  console.log(`Added ticker: ${ticker}`);
+  await updateStocks();
+};
+
+// Generate a random hex color for chart lines
 function getRandomColor() {
   const letters = '0123456789ABCDEF';
   let color = '#';
   for (let i = 0; i < 6; i++) {
     color += letters[Math.floor(Math.random() * 16)];
   }
+  console.log(`Generated color: ${color}`);
   return color;
 }
 
-// Refresh every minute
+// Auto-refresh every 60 seconds
 setInterval(updateStocks, 60 * 1000);
+console.log('Auto-refresh set up to run every 60 seconds.');
