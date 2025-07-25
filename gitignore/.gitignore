@@ -1,0 +1,3 @@
+# Ignoring secret stuff
+../secrets/
+*.log
