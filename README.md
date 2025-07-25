@@ -9,7 +9,7 @@ This is a live stock price dashboard built with HTML, CSS, JavaScript, and Chart
 - Updates automatically at desired interval.
 
 ## ⚙️ How to Use
-1. Replace `YOUR_ALPHA_VANTAGE_API_KEY` in `script.js` with your own API key.
+1. Replace `YOUR_API_KEY_HERE` in `config.sample.js` with your own API key.
 2. Open Wallpaper Engine → Create Wallpaper → Web → Select this folder.
 3. Apply the wallpaper.
 4. Use the search bar to add tickers you want to track.
