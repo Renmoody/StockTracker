@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  background: #121212; /* Dark background */
+  background: #596475; /* Dark background */
   color: #ffffff;      /* White text */
   font-family: Arial, sans-serif;
 }
@@ -28,7 +28,7 @@ button {
   padding: 6px 12px;
   margin-left: 10px;
   font-size: 1rem;
-  background: #333;
+  background: #1F2232;
   color: #fff;
   border: 1px solid #555;
   border-radius: 4px;
@@ -57,8 +57,8 @@ button:hover {
   overflow: auto;
   gap: 20px;
   padding: 10px;
-  border: 2px solid #333;
-  background: #1e1e1e;
+  border: 2px solid #FDE8E9;
+  background: #1F2232;
   border-radius: 8px;
   width: 90vw;        /* 90% of the viewport width */
   max-width: 3200px;  /* but no wider than 1200px */
